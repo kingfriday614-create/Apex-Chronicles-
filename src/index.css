@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+:root {
+  --font-serif: 'Newsreader', Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.font-editorial {
+  font-family: var(--font-serif);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Custom scrollbar and subtle transitions */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Print friendly styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Article & Preview Hyperlinks and Action Buttons */
+.article-body a:not(.btn-link):not(.btn-outline):not(.btn-primary),
+.article-preview-content a:not(.btn-link):not(.btn-outline):not(.btn-primary) {
+  color: #1c1917;
+  text-decoration: underline;
+  text-decoration-color: #a8a29e;
+  text-underline-offset: 4px;
+  text-decoration-thickness: 1.5px;
+  font-weight: 500;
+  transition: all 0.15s ease-in-out;
+  cursor: pointer;
+}
+
+.article-body a:not(.btn-link):not(.btn-outline):not(.btn-primary):hover,
+.article-preview-content a:not(.btn-link):not(.btn-outline):not(.btn-primary):hover {
+  color: #0c0a09;
+  text-decoration-color: #0c0a09;
+  text-decoration-thickness: 2px;
+}
+
+/* Styled Button Links in Editorial Content (e.g. <a href="..." class="btn-link">View All →</a>) */
+.article-body a.btn-link,
+.article-body a.btn-primary,
+.article-preview-content a.btn-link,
+.article-preview-content a.btn-primary {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding: 0.5rem 1.125rem !important;
+  background-color: #1c1917 !important;
+  color: #ffffff !important;
+  text-decoration: none !important;
+  border-radius: 0.25rem !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.025em !important;
+  line-height: 1.25rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  transition: background-color 0.15s ease-in-out, transform 0.1s ease !important;
+  cursor: pointer !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05) !important;
+}
+
+.article-body a.btn-link:hover,
+.article-body a.btn-primary:hover,
+.article-preview-content a.btn-link:hover,
+.article-preview-content a.btn-primary:hover {
+  background-color: #292524 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px);
+}
+
+.article-body a.btn-outline,
+.article-preview-content a.btn-outline {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 0.5rem !important;
+  padding: 0.5rem 1.125rem !important;
+  background-color: #ffffff !important;
+  color: #1c1917 !important;
+  border: 1px solid #d6d3d1 !important;
+  text-decoration: none !important;
+  border-radius: 0.25rem !important;
+  font-family: var(--font-sans) !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  line-height: 1.25rem !important;
+  margin-top: 0.5rem !important;
+  margin-bottom: 0.5rem !important;
+  transition: all 0.15s ease-in-out !important;
+  cursor: pointer !important;
+}
+
+.article-body a.btn-outline:hover,
+.article-preview-content a.btn-outline:hover {
+  background-color: #f5f5f4 !important;
+  border-color: #a8a29e !important;
+  color: #0c0a09 !important;
+}
+
