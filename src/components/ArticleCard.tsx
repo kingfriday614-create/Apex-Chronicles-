@@ -1,6 +1,7 @@
 import React from 'react';
 import { Article } from '../types';
 import { ArrowRight } from 'lucide-react';
+import { formatArticleDate } from '../utils/date';
 
 interface ArticleCardProps {
   article: Article;
@@ -15,13 +16,11 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   variant = 'standard',
   priority = false
 }) => {
-  const formattedDate = article.published_at
-    ? new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      }).format(new Date(article.published_at))
-    : 'Recent';
+  const formattedDate = formatArticleDate(article.published_at, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric'
+  });
 
   const readTimeEst = Math.max(1, Math.ceil((article.content || '').split(/\s+/).length / 200));
 

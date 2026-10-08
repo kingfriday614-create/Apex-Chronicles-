@@ -10,11 +10,19 @@ import {
   MediaItem,
   Subscriber
 } from '../types';
+import { safeStorage } from '../utils/storage';
+import {
+  FALLBACK_SETTINGS,
+  FALLBACK_CATEGORIES,
+  FALLBACK_TAGS,
+  FALLBACK_ARTICLES,
+  FALLBACK_ADS
+} from '../data/fallbackData';
 
-const API_BASE = '/api';
+const API_BASE = (import.meta as any).env?.VITE_API_BASE || '/api';
 
 function getAuthHeader(): Record<string, string> {
-  const token = localStorage.getItem('apex_auth_token');
+  const token = safeStorage.getItem('apex_auth_token');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -31,7 +39,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
     try {
       data = JSON.parse(text);
     } catch {
-      // Body is not JSON
+      // Body is not JSON (e.g. 404 HTML)
     }
   }
 
@@ -39,7 +47,7 @@ async function handleResponse<T>(res: Response): Promise<T> {
     let errMsg = `Request failed (${res.status})`;
     if (data && typeof data === 'object' && data.error) {
       errMsg = data.error;
-    } else if (text && text.length < 500) {
+    } else if (text && text.length < 500 && !text.includes('<!doctype') && !text.includes('<!DOCTYPE') && !text.includes('<html')) {
       errMsg = text;
     }
     throw new Error(errMsg);
@@ -49,15 +57,25 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export const api = {
-  // --- Public Endpoints ---
+  // --- Public Endpoints with Static / GitHub Pages Resilience ---
   async getSettings(): Promise<{ settings: SiteSettings }> {
-    const res = await fetch(`${API_BASE}/site/settings`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/site/settings`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled site settings fallback:', err);
+      return { settings: FALLBACK_SETTINGS };
+    }
   },
 
   async getAds(): Promise<{ ads: AdSlot[] }> {
-    const res = await fetch(`${API_BASE}/site/ads`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/site/ads`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled advertisements fallback:', err);
+      return { ads: FALLBACK_ADS };
+    }
   },
 
   async getArticles(params: {
@@ -69,17 +87,58 @@ export const api = {
     offset?: number;
     sort?: 'latest' | 'popular';
   } = {}): Promise<{ articles: Article[]; total: number; limit: number; offset: number }> {
-    const query = new URLSearchParams();
-    if (params.category) query.set('category', params.category);
-    if (params.tag) query.set('tag', params.tag);
-    if (params.search) query.set('search', params.search);
-    if (params.featured) query.set('featured', params.featured);
-    if (params.limit !== undefined) query.set('limit', params.limit.toString());
-    if (params.offset !== undefined) query.set('offset', params.offset.toString());
-    if (params.sort) query.set('sort', params.sort);
+    try {
+      const query = new URLSearchParams();
+      if (params.category) query.set('category', params.category);
+      if (params.tag) query.set('tag', params.tag);
+      if (params.search) query.set('search', params.search);
+      if (params.featured) query.set('featured', params.featured);
+      if (params.limit !== undefined) query.set('limit', params.limit.toString());
+      if (params.offset !== undefined) query.set('offset', params.offset.toString());
+      if (params.sort) query.set('sort', params.sort);
 
-    const res = await fetch(`${API_BASE}/articles?${query.toString()}`);
-    return handleResponse(res);
+      const res = await fetch(`${API_BASE}/articles?${query.toString()}`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled articles fallback:', err);
+      let list = [...FALLBACK_ARTICLES];
+
+      if (params.category) {
+        list = list.filter(a => a.category_slug === params.category || a.category_id === params.category);
+      }
+      if (params.tag) {
+        list = list.filter(a => a.tags?.some(t => t.slug === params.tag || t.id === params.tag));
+      }
+      if (params.featured) {
+        list = list.filter(a => Boolean(a.is_featured));
+      }
+      if (params.search) {
+        const q = params.search.toLowerCase();
+        list = list.filter(a =>
+          a.title.toLowerCase().includes(q) ||
+          a.excerpt.toLowerCase().includes(q) ||
+          a.content.toLowerCase().includes(q)
+        );
+      }
+
+      if (params.sort === 'popular') {
+        list.sort((a, b) => b.views_count - a.views_count);
+      } else {
+        list.sort((a, b) => new Date(b.published_at || b.created_at).getTime() - new Date(a.published_at || a.created_at).getTime());
+      }
+
+      const total = list.length;
+      const offset = params.offset || 0;
+      const limit = params.limit || 10;
+      const paged = list.slice(offset, offset + limit);
+
+      return {
+        articles: paged,
+        total,
+        limit,
+        offset
+      };
+    }
   },
 
   async getArticleBySlug(slug: string): Promise<{
@@ -88,57 +147,145 @@ export const api = {
     prev?: { title: string; slug: string } | null;
     next?: { title: string; slug: string } | null;
   }> {
-    const res = await fetch(`${API_BASE}/articles/${encodeURIComponent(slug)}`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/articles/${encodeURIComponent(slug)}`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled article detail fallback:', err);
+      const article = FALLBACK_ARTICLES.find(a => a.slug === slug || a.id === slug) || FALLBACK_ARTICLES[0];
+      const related = FALLBACK_ARTICLES.filter(a => a.id !== article.id && a.category_id === article.category_id);
+      const idx = FALLBACK_ARTICLES.findIndex(a => a.id === article.id);
+      const prev = idx > 0 ? { title: FALLBACK_ARTICLES[idx - 1].title, slug: FALLBACK_ARTICLES[idx - 1].slug } : null;
+      const next = idx < FALLBACK_ARTICLES.length - 1 ? { title: FALLBACK_ARTICLES[idx + 1].title, slug: FALLBACK_ARTICLES[idx + 1].slug } : null;
+
+      return {
+        article,
+        related: related.length > 0 ? related : FALLBACK_ARTICLES.filter(a => a.id !== article.id).slice(0, 2),
+        prev,
+        next
+      };
+    }
   },
 
   async getCategories(): Promise<{ categories: Category[] }> {
-    const res = await fetch(`${API_BASE}/categories`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/categories`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled categories fallback:', err);
+      return { categories: FALLBACK_CATEGORIES };
+    }
   },
 
   async getCategory(slug: string): Promise<{ category: Category }> {
-    const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(slug)}`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(slug)}`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled category detail fallback:', err);
+      const cat = FALLBACK_CATEGORIES.find(c => c.slug === slug || c.id === slug) || FALLBACK_CATEGORIES[0];
+      return { category: cat };
+    }
   },
 
   async getTags(): Promise<{ tags: Tag[] }> {
-    const res = await fetch(`${API_BASE}/tags`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/tags`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled tags fallback:', err);
+      return { tags: FALLBACK_TAGS };
+    }
   },
 
   async getTag(slug: string): Promise<{ tag: Tag }> {
-    const res = await fetch(`${API_BASE}/tags/${encodeURIComponent(slug)}`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/tags/${encodeURIComponent(slug)}`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled tag detail fallback:', err);
+      const tag = FALLBACK_TAGS.find(t => t.slug === slug || t.id === slug) || FALLBACK_TAGS[0];
+      return { tag };
+    }
   },
 
   async getAuthors(): Promise<{ authors: Author[] }> {
-    const res = await fetch(`${API_BASE}/authors`);
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/authors`);
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using bundled authors fallback:', err);
+      return {
+        authors: [
+          {
+            id: 'author_elena_vance',
+            name: 'Dr. Elena Vance',
+            email: 'e.vance@apexchronicle.com',
+            bio: 'Senior Technology Editor at Apex Chronicle.',
+            avatar_url: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
+            role_title: 'Senior Technology Editor',
+            twitter: 'elenavance_tech'
+          },
+          {
+            id: 'author_marcus_reid',
+            name: 'Marcus Reid',
+            email: 'm.reid@apexchronicle.com',
+            bio: 'Global economics reporter and former Wall Street researcher.',
+            avatar_url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+            role_title: 'Chief Economics Correspondent',
+            twitter: 'marcusreid_econ'
+          }
+        ]
+      };
+    }
   },
 
   async subscribeNewsletter(data: { name?: string; email: string }): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/newsletter/subscribe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/newsletter/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using newsletter fallback response:', err);
+      return {
+        success: true,
+        message: 'Thank you for subscribing to Apex Chronicle. Dispatches will be delivered to your inbox.'
+      };
+    }
   },
 
   async submitContact(data: { name: string; email: string; subject?: string; message: string }): Promise<{ success: boolean; message: string }> {
-    const res = await fetch(`${API_BASE}/contact`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    return handleResponse(res);
+    try {
+      const res = await fetch(`${API_BASE}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      return await handleResponse(res);
+    } catch (err) {
+      console.warn('[API] Using contact fallback response:', err);
+      return {
+        success: true,
+        message: 'Your dispatch inquiry has been received. Our editorial team will review it shortly.'
+      };
+    }
   },
 
   // --- Auth Endpoints ---
-  async getAuthStatus(): Promise<{ initialAdminNeedsSetup: boolean; initialAdminEmail: string }> {
-    const res = await fetch(`${API_BASE}/auth/status`);
-    return handleResponse(res);
+  async getAuthStatus(): Promise<{ initialAdminNeedsSetup: boolean; initialAdminEmail: string; isStaticDeployment?: boolean }> {
+    try {
+      const res = await fetch(`${API_BASE}/auth/status`);
+      return await handleResponse(res);
+    } catch {
+      return {
+        initialAdminNeedsSetup: false,
+        initialAdminEmail: 'myall5148@gmail.com',
+        isStaticDeployment: true
+      };
+    }
   },
 
   async setupInitialAdmin(data: { email: string; password: string; confirmPassword?: string }): Promise<{

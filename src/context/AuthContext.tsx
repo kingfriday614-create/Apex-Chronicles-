@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AdminUser } from '../types';
 import { api } from '../services/api';
+import { safeStorage } from '../utils/storage';
 
 interface AuthContextType {
   user: AdminUser | null;
@@ -22,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AdminUser | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('apex_auth_token'));
+  const [token, setToken] = useState<string | null>(safeStorage.getItem('apex_auth_token'));
   const [isLoading, setIsLoading] = useState(true);
   const [initialAdminNeedsSetup, setInitialAdminNeedsSetup] = useState(false);
   const [initialAdminEmail, setInitialAdminEmail] = useState('myall5148@gmail.com');
@@ -39,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setInitialAdminNeedsSetup(status.initialAdminNeedsSetup);
       setInitialAdminEmail(status.initialAdminEmail);
 
-      const savedToken = localStorage.getItem('apex_auth_token');
+      const savedToken = safeStorage.getItem('apex_auth_token');
       if (savedToken) {
         const res = await api.getMe();
         setUser(res.user);
@@ -49,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(null);
       }
     } catch {
-      localStorage.removeItem('apex_auth_token');
+      safeStorage.removeItem('apex_auth_token');
       setUser(null);
       setToken(null);
     } finally {
@@ -65,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const res = await api.login({ email, password });
       if (res.token && res.user) {
-        localStorage.setItem('apex_auth_token', res.token);
+        safeStorage.setItem('apex_auth_token', res.token);
         setToken(res.token);
         setUser(res.user);
         return { success: true, user: res.user };
@@ -82,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (name: string, email: string, password: string, confirmPassword?: string) => {
     const res = await api.register({ name, email, password, confirmPassword });
     if (res.token && res.user) {
-      localStorage.setItem('apex_auth_token', res.token);
+      safeStorage.setItem('apex_auth_token', res.token);
       setToken(res.token);
       setUser(res.user);
       return { success: true, user: res.user };
@@ -98,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (res.token && res.user) {
-      localStorage.setItem('apex_auth_token', res.token);
+      safeStorage.setItem('apex_auth_token', res.token);
       setToken(res.token);
       setUser(res.user);
       setInitialAdminNeedsSetup(false);
@@ -118,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.logout();
     } catch {}
-    localStorage.removeItem('apex_auth_token');
+    safeStorage.removeItem('apex_auth_token');
     setToken(null);
     setUser(null);
   };

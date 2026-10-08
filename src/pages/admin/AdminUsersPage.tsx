@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { AdminUser } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { formatArticleDate } from '../../utils/date';
 import { Shield, PlusCircle, Trash2, KeyRound, UserCheck, X } from 'lucide-react';
 
 export const AdminUsersPage: React.FC = () => {
@@ -162,7 +163,7 @@ export const AdminUsersPage: React.FC = () => {
                       </td>
 
                       <td className="py-3 px-3 text-stone-500 font-mono text-[11px]">
-                        {new Date(u.created_at).toLocaleDateString()}
+                        {formatArticleDate(u.created_at)}
                       </td>
 
                       <td className="py-3 px-4 text-right">

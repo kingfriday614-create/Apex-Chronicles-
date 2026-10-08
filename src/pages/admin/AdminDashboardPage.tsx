@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { DashboardStats } from '../../types';
+import { formatArticleDate } from '../../utils/date';
 import {
   FileText,
   CheckCircle2,
@@ -302,7 +303,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
                     {sub.name && <span className="text-[11px] text-stone-500">{sub.name}</span>}
                   </div>
                   <time className="text-[10px] font-mono text-stone-600 shrink-0">
-                    {new Date(sub.subscribed_at).toLocaleDateString()}
+                    {formatArticleDate(sub.subscribed_at)}
                   </time>
                 </li>
               ))}

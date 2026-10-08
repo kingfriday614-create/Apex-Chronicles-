@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { Article, Category } from '../../types';
+import { formatArticleDate } from '../../utils/date';
 import {
   PlusCircle,
   Search,
@@ -269,7 +270,7 @@ export const AdminArticlesPage: React.FC<AdminArticlesPageProps> = ({
 
                     {/* Published Date */}
                     <td className="py-3 px-3 text-stone-500 font-mono text-[11px] whitespace-nowrap">
-                      {art.published_at ? new Date(art.published_at).toLocaleDateString() : '—'}
+                      {art.published_at ? formatArticleDate(art.published_at, undefined, '—') : '—'}
                     </td>
 
                     {/* Actions */}

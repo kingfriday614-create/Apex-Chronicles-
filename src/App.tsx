@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SiteProvider } from './context/SiteContext';
+import { getCurrentAppRoute, getFullPath } from './utils/navigation';
 
 // Public Components & Pages
 import { Header } from './components/Header';
@@ -38,21 +39,31 @@ import { AdminSettingsPage } from './pages/admin/AdminSettingsPage';
 
 function AppContent() {
   const { user, isLoading } = useAuth();
-  const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [currentPath, setCurrentPath] = useState(getCurrentAppRoute());
   const [adminSection, setAdminSection] = useState('dashboard');
 
-  // Handle URL changes & browser history
+  // Handle URL changes & browser history (both popstate and hashchange)
   useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
+    const handleLocationChange = () => {
+      setCurrentPath(getCurrentAppRoute());
     };
 
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
   }, []);
 
   const navigateTo = (path: string) => {
-    window.history.pushState({}, '', path);
+    try {
+      const full = getFullPath(path);
+      window.history.pushState({}, '', full);
+    } catch {
+      // Fallback to hash if pushState fails in certain restricted iframe environments
+      window.location.hash = '#' + path;
+    }
     setCurrentPath(path);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };

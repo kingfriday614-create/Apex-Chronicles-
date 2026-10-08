@@ -7,6 +7,7 @@ import { NewsletterBox } from '../components/NewsletterBox';
 import { ArticleCard } from '../components/ArticleCard';
 import { updatePageSeo } from '../utils/seo';
 import { sanitizeArticleContent } from '../utils/sanitize';
+import { formatArticleDate } from '../utils/date';
 import {
   Twitter,
   Linkedin,
@@ -144,7 +145,11 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   }, [slug]);
 
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.href);
+    try {
+      if (navigator?.clipboard?.writeText) {
+        navigator.clipboard.writeText(window.location.href).catch(() => {});
+      }
+    } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
@@ -208,22 +213,25 @@ export const ArticleDetailPage: React.FC<ArticleDetailPageProps> = ({ slug, onNa
   const wordCount = (article.content || '').split(/\s+/).length;
   const readTimeEst = Math.max(1, Math.ceil(wordCount / 200));
 
-  const pubDateFormatted = article.published_at
-    ? new Intl.DateTimeFormat('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      }).format(new Date(article.published_at))
-    : 'Recently';
+  const pubDateFormatted = formatArticleDate(
+    article.published_at,
+    {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    },
+    'Recently'
+  );
 
-  const updatedDateFormatted = article.updated_at && article.published_at && article.updated_at !== article.published_at
-    ? new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      }).format(new Date(article.updated_at))
-    : null;
+  const updatedDateFormatted =
+    article.updated_at && article.published_at && article.updated_at !== article.published_at
+      ? formatArticleDate(article.updated_at, {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric'
+        })
+      : null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-8 py-8">
