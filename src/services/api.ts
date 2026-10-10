@@ -26,6 +26,20 @@ function getAuthHeader(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 3500): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: options.signal || controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   let text = '';
   try {
@@ -60,7 +74,7 @@ export const api = {
   // --- Public Endpoints with Static / GitHub Pages Resilience ---
   async getSettings(): Promise<{ settings: SiteSettings }> {
     try {
-      const res = await fetch(`${API_BASE}/site/settings`);
+      const res = await fetchWithTimeout(`${API_BASE}/site/settings`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled site settings fallback:', err);
@@ -70,7 +84,7 @@ export const api = {
 
   async getAds(): Promise<{ ads: AdSlot[] }> {
     try {
-      const res = await fetch(`${API_BASE}/site/ads`);
+      const res = await fetchWithTimeout(`${API_BASE}/site/ads`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled advertisements fallback:', err);
@@ -97,7 +111,7 @@ export const api = {
       if (params.offset !== undefined) query.set('offset', params.offset.toString());
       if (params.sort) query.set('sort', params.sort);
 
-      const res = await fetch(`${API_BASE}/articles?${query.toString()}`);
+      const res = await fetchWithTimeout(`${API_BASE}/articles?${query.toString()}`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled articles fallback:', err);
@@ -148,7 +162,7 @@ export const api = {
     next?: { title: string; slug: string } | null;
   }> {
     try {
-      const res = await fetch(`${API_BASE}/articles/${encodeURIComponent(slug)}`);
+      const res = await fetchWithTimeout(`${API_BASE}/articles/${encodeURIComponent(slug)}`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled article detail fallback:', err);
@@ -169,7 +183,7 @@ export const api = {
 
   async getCategories(): Promise<{ categories: Category[] }> {
     try {
-      const res = await fetch(`${API_BASE}/categories`);
+      const res = await fetchWithTimeout(`${API_BASE}/categories`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled categories fallback:', err);
@@ -179,7 +193,7 @@ export const api = {
 
   async getCategory(slug: string): Promise<{ category: Category }> {
     try {
-      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(slug)}`);
+      const res = await fetchWithTimeout(`${API_BASE}/categories/${encodeURIComponent(slug)}`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled category detail fallback:', err);
@@ -190,7 +204,7 @@ export const api = {
 
   async getTags(): Promise<{ tags: Tag[] }> {
     try {
-      const res = await fetch(`${API_BASE}/tags`);
+      const res = await fetchWithTimeout(`${API_BASE}/tags`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled tags fallback:', err);
@@ -200,7 +214,7 @@ export const api = {
 
   async getTag(slug: string): Promise<{ tag: Tag }> {
     try {
-      const res = await fetch(`${API_BASE}/tags/${encodeURIComponent(slug)}`);
+      const res = await fetchWithTimeout(`${API_BASE}/tags/${encodeURIComponent(slug)}`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled tag detail fallback:', err);
@@ -211,7 +225,7 @@ export const api = {
 
   async getAuthors(): Promise<{ authors: Author[] }> {
     try {
-      const res = await fetch(`${API_BASE}/authors`);
+      const res = await fetchWithTimeout(`${API_BASE}/authors`);
       return await handleResponse(res);
     } catch (err) {
       console.warn('[API] Using bundled authors fallback:', err);
@@ -242,7 +256,7 @@ export const api = {
 
   async subscribeNewsletter(data: { name?: string; email: string }): Promise<{ success: boolean; message: string }> {
     try {
-      const res = await fetch(`${API_BASE}/newsletter/subscribe`, {
+      const res = await fetchWithTimeout(`${API_BASE}/newsletter/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -259,7 +273,7 @@ export const api = {
 
   async submitContact(data: { name: string; email: string; subject?: string; message: string }): Promise<{ success: boolean; message: string }> {
     try {
-      const res = await fetch(`${API_BASE}/contact`, {
+      const res = await fetchWithTimeout(`${API_BASE}/contact`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -277,7 +291,7 @@ export const api = {
   // --- Auth Endpoints ---
   async getAuthStatus(): Promise<{ initialAdminNeedsSetup: boolean; initialAdminEmail: string; isStaticDeployment?: boolean }> {
     try {
-      const res = await fetch(`${API_BASE}/auth/status`);
+      const res = await fetchWithTimeout(`${API_BASE}/auth/status`);
       return await handleResponse(res);
     } catch {
       return {

@@ -17,9 +17,41 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
   const [popularArticles, setPopularArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  const loadHomeData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [featRes, popRes, latestRes, catRes] = await Promise.all([
+        api.getArticles({ featured: '1', limit: 1 }),
+        api.getArticles({ sort: 'popular', limit: 4 }),
+        api.getArticles({ limit: 6, offset: 0 }),
+        api.getCategories()
+      ]);
+
+      const hero = featRes.articles[0] || latestRes.articles[0] || null;
+      setFeaturedArticle(hero);
+
+      // Filter popular to avoid exact hero duplicate if possible
+      const filteredPopular = popRes.articles.filter(a => a.id !== hero?.id).slice(0, 3);
+      setPopularArticles(filteredPopular);
+
+      // Filter latest
+      setLatestArticles(latestRes.articles);
+      setHasMore(latestRes.total > latestRes.articles.length);
+      setCategories(catRes.categories);
+    } catch (err: any) {
+      console.error('Failed to load home page content', err);
+      setError(err?.message || 'Unable to load publication feed. Please retry.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     // Set SEO metadata on homepage
@@ -28,35 +60,6 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       description: 'In-depth investigations, authoritative technology coverage, economic trends, and cultural essays from award-winning journalists.',
       ogType: 'website'
     });
-
-    const loadHomeData = async () => {
-      try {
-        setLoading(true);
-
-        const [featRes, popRes, latestRes, catRes] = await Promise.all([
-          api.getArticles({ featured: '1', limit: 1 }),
-          api.getArticles({ sort: 'popular', limit: 4 }),
-          api.getArticles({ limit: 6, offset: 0 }),
-          api.getCategories()
-        ]);
-
-        const hero = featRes.articles[0] || latestRes.articles[0] || null;
-        setFeaturedArticle(hero);
-
-        // Filter popular to avoid exact hero duplicate if possible
-        const filteredPopular = popRes.articles.filter(a => a.id !== hero?.id).slice(0, 3);
-        setPopularArticles(filteredPopular);
-
-        // Filter latest
-        setLatestArticles(latestRes.articles);
-        setHasMore(latestRes.total > latestRes.articles.length);
-        setCategories(catRes.categories);
-      } catch (err) {
-        console.error('Failed to load home page content', err);
-      } finally {
-        setLoading(false);
-      }
-    };
 
     loadHomeData();
   }, []);
@@ -83,6 +86,31 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-8 py-16 text-center">
         <div className="inline-block w-8 h-8 border-2 border-stone-300 border-t-stone-800 rounded-full animate-spin mb-4" />
         <p className="text-sm font-mono text-stone-500">Retrieving front page editorial feed...</p>
+      </div>
+    );
+  }
+
+  if (error && !featuredArticle && latestArticles.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+        <div className="border border-stone-200 bg-white p-8 rounded-lg shadow-xs">
+          <h2 className="font-editorial text-2xl font-bold text-stone-900 mb-2">Editorial Feed Temporarily Unavailable</h2>
+          <p className="text-sm text-stone-600 mb-6">{error}</p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={loadHomeData}
+              className="px-5 py-2.5 bg-stone-900 text-white text-xs font-semibold rounded hover:bg-stone-800 transition-colors cursor-pointer"
+            >
+              Retry Loading Feed
+            </button>
+            <button
+              onClick={() => onNavigate('/articles')}
+              className="px-5 py-2.5 bg-stone-100 text-stone-800 text-xs font-semibold rounded hover:bg-stone-200 transition-colors cursor-pointer"
+            >
+              Browse Articles Directory
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -161,16 +189,23 @@ export const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             </button>
           </div>
 
-          <div className="divide-y divide-stone-200">
-            {latestArticles.map((art) => (
-              <ArticleCard
-                key={art.id}
-                article={art}
-                onNavigate={onNavigate}
-                variant="horizontal"
-              />
-            ))}
-          </div>
+          {latestArticles.length > 0 ? (
+            <div className="divide-y divide-stone-200">
+              {latestArticles.map((art) => (
+                <ArticleCard
+                  key={art.id}
+                  article={art}
+                  onNavigate={onNavigate}
+                  variant="horizontal"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="py-12 text-center border border-dashed border-stone-200 rounded p-8 bg-stone-50/50">
+              <p className="font-editorial text-lg text-stone-800 mb-1">No publication dispatches currently filed</p>
+              <p className="text-xs text-stone-500">The editorial bureau is preparing new reports. Please check back shortly.</p>
+            </div>
+          )}
 
           {/* Feed Actions / View All Archive */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3">
