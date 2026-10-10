@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { SiteSettings, Category, AdSlot } from '../types';
 import { api } from '../services/api';
+import { FALLBACK_SETTINGS, FALLBACK_CATEGORIES, FALLBACK_ADS } from '../data/fallbackData';
 
 interface SiteContextType {
   settings: SiteSettings | null;
@@ -12,13 +13,18 @@ interface SiteContextType {
   refreshAds: () => Promise<void>;
 }
 
+const initialAdsMap: Record<string, AdSlot> = {};
+for (const ad of FALLBACK_ADS) {
+  initialAdsMap[ad.slot_key] = ad;
+}
+
 const SiteContext = createContext<SiteContextType | undefined>(undefined);
 
 export const SiteProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [settings, setSettings] = useState<SiteSettings | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [ads, setAds] = useState<Record<string, AdSlot>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [settings, setSettings] = useState<SiteSettings | null>(FALLBACK_SETTINGS);
+  const [categories, setCategories] = useState<Category[]>(FALLBACK_CATEGORIES);
+  const [ads, setAds] = useState<Record<string, AdSlot>>(initialAdsMap);
+  const [isLoading, setIsLoading] = useState(false);
 
   const refreshSettings = async () => {
     try {

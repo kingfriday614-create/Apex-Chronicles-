@@ -9,7 +9,8 @@
       // https://github.com/rafgraph/spa-github-pages
       // This script takes the current url and converts the path and query
       // into a query parameter, then redirects to index.html so the SPA router can handle it.
-      var pathSegmentsToKeep = 1;
+      // Support both github.io project sites (repo segment = 1) and custom domains / user sites (segment = 0)
+      var pathSegmentsToKeep = window.location.hostname.indexOf('github.io') !== -1 ? 1 : 0;
 
       var l = window.location;
       l.replace(
